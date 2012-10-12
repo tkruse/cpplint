@@ -39,8 +39,7 @@ import random
 import re
 import sys
 import unittest
-
-import cpplint
+import cpplint.cpplint as cpplint
 
 
 # This class works as an error collector and replaces cpplint.Error
