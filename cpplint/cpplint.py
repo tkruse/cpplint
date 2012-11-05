@@ -89,6 +89,8 @@ import string
 import sys
 import unicodedata
 
+EXTENSIONS = ['c', 'cc', 'cpp', 'cxx', 'c++',
+              'h', 'hpp', 'hxx', 'h++']
 
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
@@ -107,7 +109,7 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
   suppresses errors of all categories on that line.
 
   The files passed in will be linted; at least one file must be provided.
-  Linted extensions are .cc, .cpp, and .h.  Other file types will be ignored.
+  Linted extensions are %s.  Other file types will be ignored.
 
   Flags:
 
@@ -139,7 +141,7 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
       the top-level categories like 'build' and 'whitespace' will
       also be printed. If 'detailed' is provided, then a count
       is provided for each category like 'build/class'.
-"""
+""" % (EXTENSIONS)
 
 # We categorize each error message we print.  Here are the categories.
 # We want an explicit list so we can list them all in cpplint --filter=.
@@ -759,7 +761,7 @@ class FileInfo:
 
   def IsSource(self):
     """File has a source file extension."""
-    return self.Extension()[1:] in ('c', 'cc', 'cpp', 'cxx')
+    return self.Extension()[1:] in EXTENSIONS
 
 
 def _ShouldPrintError(category, confidence, linenum):
@@ -3249,9 +3251,8 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
 
   # When reading from stdin, the extension is unknown, so no cpplint tests
   # should rely on the extension.
-  if (filename != '-' and file_extension != 'cc' and file_extension != 'h'
-      and file_extension != 'cpp'):
-    sys.stderr.write('Ignoring %s; not a .cc or .h file\n' % filename)
+  if (filename != '-' and file_extension not in EXTENSIONS):
+    sys.stderr.write('Ignoring %s; extension not in %s\n' % (filename, EXTENSIONS))
   else:
     ProcessFileData(filename, file_extension, lines, Error,
                     extra_check_functions)
