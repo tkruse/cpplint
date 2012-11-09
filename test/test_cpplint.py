@@ -33,8 +33,6 @@
 
 # TODO(unknown): Add a good test that tests UpdateIncludeState.
 
-from __future__ import unicode_literals
-
 import codecs
 import os
 import sys
@@ -238,6 +236,17 @@ class CpplintTestBase(unittest.TestCase):
             'Blank line at the end of a code block.  Is this needed?'
             '  [whitespace/blank_line] [3]'))
 
+if sys.version_info < (3,):
+    def u(x):
+        return codecs.unicode_escape_decode(x)[0]
+    def b(x):
+        return x
+else:
+    def u(x):
+        return x
+    def b(x):
+        return codecs.latin_1_encode(x)[0]
+
 
 class CpplintTest(CpplintTestBase):
 
@@ -245,7 +254,7 @@ class CpplintTest(CpplintTestBase):
   def testGetLineWidth(self):
     self.assertEquals(0, cpplint.GetLineWidth(''))
     self.assertEquals(10, cpplint.GetLineWidth('x' * 10))
-    self.assertEquals(16, cpplint.GetLineWidth('都|道|府|県|支庁'))
+    self.assertEquals(16, cpplint.GetLineWidth(u('\u90fd|\u9053|\u5e9c|\u770c|\u652f\u5e81')))
 
   def testGetTextInside(self):
     self.assertEquals('', cpplint._GetTextInside('fun()', r'fun\('))
@@ -1683,9 +1692,13 @@ class CpplintTest(CpplintTestBase):
   def testInvalidUtf8(self):
     def DoTest(self, raw_bytes, has_invalid_utf8):
       error_collector = ErrorCollector(self.assert_)
+      if sys.version_info < (3,):
+        unidata = unicode(raw_bytes, 'utf8', 'replace').split('\n')
+      else:
+        unidata = str(raw_bytes, 'utf8', 'replace').split('\n')
       cpplint.ProcessFileData(
           'foo.cc', 'cc',
-          unicode(raw_bytes, 'utf8', 'replace').split('\n'),
+          unidata,
           error_collector)
       # The warning appears only once.
       self.assertEquals(
@@ -1695,12 +1708,12 @@ class CpplintTest(CpplintTestBase):
               ' (or Unicode replacement character).'
               '  [readability/utf8] [5]'))
 
-    DoTest(self, 'Hello world\n', False)
-    DoTest(self, '\xe9\x8e\xbd\n', False)
-    DoTest(self, '\xe9x\x8e\xbd\n', True)
+    DoTest(self, b('Hello world\n'), False)
+    DoTest(self, b('\xe9\x8e\xbd\n'), False)
+    DoTest(self, b('\xe9x\x8e\xbd\n'), True)
     # This is the encoding of the replacement character itself (which
     # you can see by evaluating codecs.getencoder('utf8')(u'\ufffd')).
-    DoTest(self, '\xef\xbf\xbd\n', True)
+    DoTest(self, b('\xef\xbf\xbd\n'), True)
 
   def testIsBlankLine(self):
     self.assert_(cpplint.IsBlankLine(''))

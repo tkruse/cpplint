@@ -307,12 +307,14 @@ if sys.version_info < (3,):
     # BINARY_TYPE = str
     range = xrange
     itervalues = dict.itervalues
+    iteritems = dict.iteritems
 else:
     def u(x):
         return x
     TEXT_TYPE = str
     # BINARY_TYPE = bytes
     itervalues = dict.values
+    iteritems = dict.items
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
@@ -577,7 +579,7 @@ class _CppLintState(object):
 
   def PrintErrorCounts(self):
     """Print a summary of errors by category, and the total."""
-    for category, count in self.errors_by_category.iteritems():
+    for category, count in iteritems(self.errors_by_category):
       sys.stderr.write('Category \'%s\' errors found: %d\n' %
                        (category, count))
     sys.stderr.write('Total errors found: %d\n' % self.error_count)
@@ -834,9 +836,9 @@ def Error(filename, linenum, category, confidence, message):
       sys.stderr.write('%s(%s):  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
     else:
-      sys.stderr.write('%s:%s:  %s  [%s] [%d]\n' % (
-          filename, linenum, message, category, confidence))
-
+      m = '%s:%s:  %s  [%s] [%d]\n' % (
+          filename, linenum, message, category, confidence)
+      sys.stderr.write(m)
 
 # Matches standard C++ escape esequences per 2.13.2.3 of the C++ standard.
 _RE_PATTERN_CLEANSE_LINE_ESCAPES = re.compile(
@@ -3288,6 +3290,7 @@ def PrintUsage(message):
     message: The optional error message.
   """
   sys.stderr.write(_USAGE)
+
   if message:
     sys.exit('\nFATAL ERROR: ' + message)
   else:
@@ -3357,18 +3360,18 @@ def ParseArguments(args):
 
 def main():
   filenames = ParseArguments(sys.argv[1:])
-
-  # Change stderr to write with replacement characters so we don't die
-  # if we try to print something containing non-ASCII characters.
-  sys.stderr = codecs.StreamReaderWriter(sys.stderr,
-                                         codecs.getreader('utf8'),
-                                         codecs.getwriter('utf8'),
-                                         'replace')
-
-  _cpplint_state.ResetErrorCounts()
-  for filename in filenames:
-    ProcessFile(filename, _cpplint_state.verbose_level)
-  _cpplint_state.PrintErrorCounts()
+  backup_err = sys.stderr
+  try:
+    # Change stderr to write with replacement characters so we don't die
+    # if we try to print something containing non-ASCII characters.
+    sys.stderr = codecs.StreamReader(sys.stderr,
+                                     'replace')
+    _cpplint_state.ResetErrorCounts()
+    for filename in filenames:
+      ProcessFile(filename, _cpplint_state.verbose_level)
+    _cpplint_state.PrintErrorCounts()
+  finally:
+    sys.stderr = backup_err
 
   sys.exit(_cpplint_state.error_count > 0)
 
