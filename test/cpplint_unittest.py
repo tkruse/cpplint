@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/env python
 # -*- coding: utf-8; -*-
 #
 # Copyright (c) 2009 Google Inc. All rights reserved.
@@ -38,7 +38,7 @@ import os
 import random
 import re
 import unittest
-import cpplint.cpplint
+import cpplint.cpplint as cpplint
 
 
 # This class works as an error collector and replaces cpplint.Error
@@ -2908,7 +2908,7 @@ class CheckForFunctionLengthsTest(CpplintTestBase):
     self.TestFunctionLengthsCheck(
         'MACRO_WITH_UNDERSCORES(arg1, arg2, arg3)',
         '')
-    
+
     self.TestFunctionLengthsCheck(
         'NonMacro(arg)',
         'Lint failed to find start of function body.'
