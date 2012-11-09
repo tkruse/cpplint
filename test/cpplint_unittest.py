@@ -33,8 +33,11 @@
 
 # TODO(unknown): Add a good test that tests UpdateIncludeState.
 
+from __future__ import unicode_literals
+
 import codecs
 import os
+import sys
 import random
 import re
 import unittest
@@ -133,7 +136,7 @@ class CpplintTestBase(unittest.TestCase):
     cpplint.RemoveMultiLineComments('foo.h', lines, error_collector)
     lines = cpplint.CleansedLines(lines)
     class_state = cpplint._ClassState()
-    for i in xrange(lines.NumLines()):
+    for i in range(lines.NumLines()):
       cpplint.CheckStyle('foo.h', lines, i, 'h', class_state,
                          error_collector)
       cpplint.CheckForNonStandardConstructs('foo.h', lines, i, class_state,
@@ -150,7 +153,7 @@ class CpplintTestBase(unittest.TestCase):
     cpplint.RemoveMultiLineComments(file_name, lines, error_collector)
     lines = cpplint.CleansedLines(lines)
     ext = file_name[file_name.rfind('.') + 1:]
-    for i in xrange(lines.NumLines()):
+    for i in range(lines.NumLines()):
       cpplint.CheckLanguage(file_name, lines, i, ext, include_state,
                             error_collector)
     return error_collector.Results()
@@ -176,7 +179,7 @@ class CpplintTestBase(unittest.TestCase):
     lines = code.split('\n')
     cpplint.RemoveMultiLineComments(file_name, lines, error_collector)
     lines = cpplint.CleansedLines(lines)
-    for i in xrange(lines.NumLines()):
+    for i in range(lines.NumLines()):
       cpplint.CheckForFunctionLengths(file_name, lines, i,
                                       function_state, error_collector)
     return error_collector.Results()
@@ -188,7 +191,7 @@ class CpplintTestBase(unittest.TestCase):
     lines = code.split('\n')
     cpplint.RemoveMultiLineComments(filename, lines, error_collector)
     lines = cpplint.CleansedLines(lines)
-    for i in xrange(lines.NumLines()):
+    for i in range(lines.NumLines()):
       cpplint.CheckLanguage(filename, lines, i, '.h', include_state,
                             error_collector)
     # We could clear the error_collector here, but this should
@@ -241,8 +244,8 @@ class CpplintTest(CpplintTestBase):
   # Test get line width.
   def testGetLineWidth(self):
     self.assertEquals(0, cpplint.GetLineWidth(''))
-    self.assertEquals(10, cpplint.GetLineWidth(u'x' * 10))
-    self.assertEquals(16, cpplint.GetLineWidth(u'都|道|府|県|支庁'))
+    self.assertEquals(10, cpplint.GetLineWidth('x' * 10))
+    self.assertEquals(16, cpplint.GetLineWidth('都|道|府|県|支庁'))
 
   def testGetTextInside(self):
     self.assertEquals('', cpplint._GetTextInside('fun()', r'fun\('))
@@ -2311,7 +2314,7 @@ class CpplintTest(CpplintTestBase):
       other_decl_specs = [random.choice(qualifiers), random.choice(signs),
                           random.choice(types)]
       # remove None
-      other_decl_specs = filter(lambda x: x is not None, other_decl_specs)
+      other_decl_specs = list(filter(lambda x: x is not None, other_decl_specs))
 
       # shuffle
       random.shuffle(other_decl_specs)
