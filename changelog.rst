@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.0.3
+-----
+
+- py3k compatibility
+
 0.0.2
 -----
 
