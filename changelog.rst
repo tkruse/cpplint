@@ -1,6 +1,14 @@
 Changelog
 ---------
 
+0.0.4
+-----
+
+- Merged with upstream revision r141 (2014-12-04)
+This includes many new checks, see commit messages for details.
+This also reverts some renaming of files, to stay close to the original project.
+
+
 0.0.3
 -----
 
@@ -15,3 +23,4 @@ Changelog
 -----
 
 - import from googlecode, added setup.py
+- imported revision r83 (2012-05-11)
