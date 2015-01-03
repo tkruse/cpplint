@@ -4284,7 +4284,7 @@ class Cxx11Test(CpplintTestBase):
     lines = lines[:]
 
     # Header files need to have an ifdef guard wrapped around their code.
-    if extension == 'h':
+    if extension.startswith('h'):
       guard = filename.upper().replace('/', '_').replace('.', '_') + '_'
       lines.insert(0, '#ifndef ' + guard)
       lines.insert(1, '#define ' + guard)
