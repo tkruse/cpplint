@@ -7,7 +7,7 @@ setup(name='cpplint',
       scripts=["bin/cpplint"],
       install_requires=[],
       url="http://en.wikipedia.org/wiki/Cpplint",
-      download_url="http://google-styleguide.googlecode.com/svn/trunk/cpplint/",
+      download_url="https://github.com/tkruse/cpplint",
       keywords=["lint", "python", "c++"],
       classifiers=["Programming Language :: Python",
                    "Programming Language :: Python :: 2",
@@ -20,4 +20,5 @@ guide (http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml). As it
 heavily relies on regular expressions, cpplint.py won't catch all violations of
 the style guide and will very occasionally report a false positive. There is a
 list of things we currently don't handle very well at the top of cpplint.py,
-and we welcome patches to improve it.""")
+and we welcome patches to improve it.
+Original SVN download URL: http://google-styleguide.googlecode.com/svn/trunk/cpplint/""")
