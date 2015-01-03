@@ -64,7 +64,7 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
         <file> [file] ...
 
   The style guidelines this tries to follow are those in
-    http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+    https://github.com/google/styleguide
 
   Every problem is given a confidence score from 1-5, with 5 meaning we are
   certain of the problem, and 1 meaning it could be a legitimate construct.
@@ -502,6 +502,29 @@ _root = None
 # This is set by --linelength flag.
 _line_length = 80
 
+try:
+    xrange
+except NameError:
+    xrange = range
+
+try:
+  unicode
+except NameError:
+  basestring = unicode = str
+
+if sys.version_info < (3,):
+    def u(x):
+        return codecs.unicode_escape_decode(x)[0]
+    # BINARY_TYPE = str
+    itervalues = dict.itervalues
+    iteritems = dict.iteritems
+else:
+    def u(x):
+        return x
+    # BINARY_TYPE = bytes
+    itervalues = dict.values
+    iteritems = dict.items
+
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
 
@@ -841,10 +864,11 @@ class _CppLintState(object):
 
   def PrintErrorCounts(self):
     """Print a summary of errors by category, and the total."""
-    for category, count in self.errors_by_category.iteritems():
+    for category, count in iteritems(self.errors_by_category):
       sys.stderr.write('Category \'%s\' errors found: %d\n' %
                        (category, count))
-    sys.stderr.write('Total errors found: %d\n' % self.error_count)
+    if self.error_count > 0 and self.verbose_level > 0:
+      sys.stderr.write('Total errors found: %d\n' % self.error_count)
 
 _cpplint_state = _CppLintState()
 
@@ -1115,15 +1139,15 @@ def Error(filename, linenum, category, confidence, message):
   if _ShouldPrintError(category, confidence, linenum):
     _cpplint_state.IncrementErrorCount(category)
     if _cpplint_state.output_format == 'vs7':
-      sys.stderr.write('%s(%s):  %s  [%s] [%d]\n' % (
+      sys.stderr.write('%s(%s): warning: %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
     elif _cpplint_state.output_format == 'eclipse':
       sys.stderr.write('%s:%s: warning: %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
     else:
-      sys.stderr.write('%s:%s:  %s  [%s] [%d]\n' % (
-          filename, linenum, message, category, confidence))
-
+      m = '%s:%s:  %s  [%s] [%d]\n' % (
+          filename, linenum, message, category, confidence)
+      sys.stderr.write(m)
 
 # Matches standard C++ escape sequences per 2.13.2.3 of the C++ standard.
 _RE_PATTERN_CLEANSE_LINE_ESCAPES = re.compile(
@@ -1625,7 +1649,7 @@ def CheckForCopyright(filename, lines, error):
 
   # We'll say it should occur by line 10. Don't forget there's a
   # dummy line at the front.
-  for line in xrange(1, min(len(lines), 11)):
+  for line in range(1, min(len(lines), 11)):
     if re.search(r'Copyright', lines[line], re.I): break
   else:                       # means no copyright line was found
     error(filename, 0, 'legal/copyright', 5,
@@ -1667,7 +1691,7 @@ def GetHeaderGuardCPPVariable(filename):
   filename = re.sub(r'/\.flymake/([^/]*)$', r'/\1', filename)
   # Replace 'c++' with 'cpp'.
   filename = filename.replace('C++', 'cpp').replace('c++', 'cpp')
-  
+
   fileinfo = FileInfo(filename)
   file_path_from_root = fileinfo.RepositoryName()
   if _root:
@@ -1816,7 +1840,7 @@ def CheckForBadCharacters(filename, lines, error):
     error: The function to call with any errors found.
   """
   for linenum, line in enumerate(lines):
-    if u'\ufffd' in line:
+    if u('\ufffd') in line:
       error(filename, linenum, 'readability/utf8', 5,
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
@@ -2446,7 +2470,7 @@ class NestingState(object):
     #   class LOCKABLE API Object {
     #   };
     class_decl_match = Match(
-        r'^(\s*(?:template\s*<[\w\s<>,:]*>\s*)?'
+        r'^(\s*(?:template\s*<[\w\s<>,:=]*>\s*)?'
         r'(class|struct)\s+(?:[A-Z_]+\s+)*(\w+(?:::\w+)*))'
         r'(.*)$', line)
     if (class_decl_match and
@@ -2695,6 +2719,7 @@ def CheckForNonStandardConstructs(filename, clean_lines, linenum,
       constructor_args[i] = constructor_arg
       i += 1
 
+    variadic_args = [arg for arg in constructor_args if '&&...' in arg]
     defaulted_args = [arg for arg in constructor_args if '=' in arg]
     noarg_constructor = (not constructor_args or  # empty arg list
                          # 'void' arg specifier
@@ -2705,7 +2730,10 @@ def CheckForNonStandardConstructs(filename, clean_lines, linenum,
                           # all but at most one arg defaulted
                           (len(constructor_args) >= 1 and
                            not noarg_constructor and
-                           len(defaulted_args) >= len(constructor_args) - 1))
+                           len(defaulted_args) >= len(constructor_args) - 1) or
+                          # variadic arguments with zero or one argument
+                          (len(constructor_args) <= 2 and
+                           len(variadic_args) >= 1))
     initializer_list_constructor = bool(
         onearg_constructor and
         Search(r'\bstd\s*::\s*initializer_list\b', constructor_args[0]))
@@ -2718,7 +2746,7 @@ def CheckForNonStandardConstructs(filename, clean_lines, linenum,
         onearg_constructor and
         not initializer_list_constructor and
         not copy_constructor):
-      if defaulted_args:
+      if defaulted_args or variadic_args:
         error(filename, linenum, 'runtime/explicit', 5,
               'Constructors callable with one argument '
               'should be marked explicit.')
@@ -2880,7 +2908,7 @@ def CheckForFunctionLengths(filename, clean_lines, linenum,
 
   if starting_func:
     body_found = False
-    for start_linenum in xrange(linenum, clean_lines.NumLines()):
+    for start_linenum in range(linenum, clean_lines.NumLines()):
       start_line = lines[start_linenum]
       joined_line += ' ' + start_line.lstrip()
       if Search(r'(;|})', start_line):  # Declarations and trivial functions
@@ -3513,7 +3541,7 @@ def IsRValueType(typenames, clean_lines, nesting_state, linenum, column):
     # We want to skip over identifiers and commas to get to a symbol.
     # Commas are skipped so that we can find the opening parenthesis
     # for function parameter lists.
-    match_symbol = Match(r'^(.*)([^\w\s,])[\w\s,]*$', line)
+    match_symbol = Match(r'^(.*)([^\w\s,:&*])[\w\s,:&*]*$', line)
     if match_symbol:
       break
     start -= 1
@@ -4092,7 +4120,7 @@ def CheckTrailingSemicolon(filename, clean_lines, linenum, error):
         clean_lines, linenum, closing_brace_pos)
     if opening_parenthesis[2] > -1:
       line_prefix = opening_parenthesis[0][0:opening_parenthesis[2]]
-      macro = Search(r'\b([A-Z_]+)\s*$', line_prefix)
+      macro = Search(r'\b([A-Z0-9_]+)\s*$', line_prefix)
       func = Match(r'^(.*\])\s*$', line_prefix)
       if ((macro and
            macro.group(1) not in (
@@ -4446,9 +4474,13 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   #
   # The "$Id:...$" comment may also get very long without it being the
   # developers fault.
+  #
+  # Doxygen documentation copying can get pretty long when using an overloaded
+  # function declaration
   if (not line.startswith('#include') and not is_header_guard and
       not Match(r'^\s*//.*http(s?)://\S*$', line) and
-      not Match(r'^// \$Id:.*#[0-9]+ \$$', line)):
+      not Match(r'^// \$Id:.*#[0-9]+ \$$', line) and
+      not Match(r'^\s*/// [@\\](copydoc|copydetails|copybrief) .*$', line)):
     line_width = GetLineWidth(line)
     extended_length = int((_line_length * 1.25))
     if line_width > extended_length:
@@ -4460,6 +4492,9 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
             'Lines should be <= %i characters long' % _line_length)
 
   if (cleansed_line.count(';') > 1 and
+      # allow simple single line lambdas
+      not Match(r'^[^{};]*\[[^\[\]]*\][^{}]*\{[^{}\n\r]*\}',
+                line) and
       # for loops are allowed two ;'s (and may run over two lines).
       cleansed_line.find('for') == -1 and
       (GetPreviousNonBlankLine(clean_lines, linenum)[0].find('for') == -1 or
@@ -4678,7 +4713,7 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
 
 
 def _GetTextInside(text, start_pattern):
-  r"""Retrieves all the text between matching open and close parentheses.
+  """Retrieves all the text between matching open and close parentheses.
 
   Given a string of lines and a regular expression string, retrieve all the text
   following the expression and between opening punctuation symbols like
@@ -4702,7 +4737,7 @@ def _GetTextInside(text, start_pattern):
 
   # Give opening punctuations to get the matching close-punctuations.
   matching_punctuation = {'(': ')', '{': '}', '[': ']'}
-  closing_punctuation = set(matching_punctuation.itervalues())
+  closing_punctuation = set(itervalues(matching_punctuation))
 
   # Find the position to start extracting text.
   match = re.search(start_pattern, text, re.M)
@@ -4793,9 +4828,6 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
   if match:
     include_state.ResetSection(match.group(1))
 
-  # Make Windows paths like Unix.
-  fullname = os.path.abspath(filename).replace('\\', '/')
-  
   # Perform other checks now that we are sure that this is not an include line
   CheckCasts(filename, clean_lines, linenum, error)
   CheckGlobalStatic(filename, clean_lines, linenum, error)
@@ -4861,7 +4893,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
           'Did you mean "memset(%s, 0, %s)"?'
           % (match.group(1), match.group(2)))
 
-  if Search(r'\busing namespace\b', line):
+  if Search(r'\busing namespace\b', line) and not Search(r'\bliterals\b', line):
     error(filename, linenum, 'build/namespaces', 5,
           'Do not use namespace using-directives.  '
           'Use using-declarations instead.')
@@ -5623,7 +5655,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
   required = {}  # A map of header name to linenumber and the template entity.
                  # Example of required: { '<functional>': (1219, 'less<>') }
 
-  for linenum in xrange(clean_lines.NumLines()):
+  for linenum in range(clean_lines.NumLines()):
     line = clean_lines.elided[linenum]
     if not line or line[0] == '#':
       continue
@@ -5672,7 +5704,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
 
   # include_dict is modified during iteration, so we iterate over a copy of
   # the keys.
-  header_keys = include_dict.keys()
+  header_keys = list(include_dict.keys())
   for header in header_keys:
     (same_module, common_path) = FilesBelongToSameModule(abs_filename, header)
     fullpath = common_path + header
@@ -6027,7 +6059,7 @@ def ProcessFileData(filename, file_extension, lines, error,
   if file_extension == 'h':
     CheckForHeaderGuard(filename, clean_lines, error)
 
-  for line in xrange(clean_lines.NumLines()):
+  for line in range(clean_lines.NumLines()):
     ProcessLine(filename, file_extension, clean_lines, line,
                 include_state, function_state, nesting_state, error,
                 extra_check_functions)
@@ -6035,7 +6067,7 @@ def ProcessFileData(filename, file_extension, lines, error,
   nesting_state.CheckCompletedBlocks(filename, error)
 
   CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error)
-  
+
   # Check that the .cc file has included its header if it exists.
   if file_extension == 'cc':
     CheckHeaderFileIncluded(filename, include_state, error)
@@ -6205,8 +6237,8 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
       for linenum in crlf_lines:
         Error(filename, linenum, 'whitespace/newline', 1,
               'Unexpected \\r (^M) found; better to use only \\n')
-
-  sys.stderr.write('Done processing %s\n' % filename)
+  if vlevel > 0:
+    sys.stderr.write('Done processing %s\n' % filename)
   _RestoreFilters()
 
 
@@ -6217,10 +6249,11 @@ def PrintUsage(message):
     message: The optional error message.
   """
   sys.stderr.write(_USAGE)
+
   if message:
     sys.exit('\nFATAL ERROR: ' + message)
   else:
-    sys.exit(1)
+    sys.exit(0)
 
 
 def PrintCategories():
@@ -6304,18 +6337,18 @@ def ParseArguments(args):
 
 def main():
   filenames = ParseArguments(sys.argv[1:])
-
-  # Change stderr to write with replacement characters so we don't die
-  # if we try to print something containing non-ASCII characters.
-  sys.stderr = codecs.StreamReaderWriter(sys.stderr,
-                                         codecs.getreader('utf8'),
-                                         codecs.getwriter('utf8'),
-                                         'replace')
-
-  _cpplint_state.ResetErrorCounts()
-  for filename in filenames:
-    ProcessFile(filename, _cpplint_state.verbose_level)
-  _cpplint_state.PrintErrorCounts()
+  backup_err = sys.stderr
+  try:
+    # Change stderr to write with replacement characters so we don't die
+    # if we try to print something containing non-ASCII characters.
+    sys.stderr = codecs.StreamReader(sys.stderr,
+                                     'replace')
+    _cpplint_state.ResetErrorCounts()
+    for filename in filenames:
+      ProcessFile(filename, _cpplint_state.verbose_level)
+    _cpplint_state.PrintErrorCounts()
+  finally:
+    sys.stderr = backup_err
 
   sys.exit(_cpplint_state.error_count > 0)
 
