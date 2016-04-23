@@ -1,4 +1,5 @@
 .svn
+__pycache__
 *.pyc
 cpplint.egg-info
 build
