@@ -57,6 +57,9 @@ import unicodedata
 _valid_extensions = set(['c', 'cc', 'cpp', 'cxx', 'c++', 'h', 'hpp', 'hxx',
     'h++'])
 
+Py3k = (sys.version_info[0] == 3)
+"""A boolean to check if we are running Python3000"""
+
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
                    [--counting=total|toplevel|detailed] [--root=subdir]
@@ -502,6 +505,19 @@ _root = None
 # This is set by --linelength flag.
 _line_length = 80
 
+try:
+    xrange(0,1)
+except NameError:
+    xrange = range
+try:
+    unicode
+except NameError:
+    basestring = unicode = str
+try:
+    long
+except NameError:
+    long = int
+
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
 
@@ -841,7 +857,11 @@ class _CppLintState(object):
 
   def PrintErrorCounts(self):
     """Print a summary of errors by category, and the total."""
-    for category, count in self.errors_by_category.iteritems():
+    try:
+        items = self.errors_by_category.iteritems()
+    except AttributeError:
+        items = self.errors_by_category.items()
+    for category, count in items:
       sys.stderr.write('Category \'%s\' errors found: %d\n' %
                        (category, count))
     sys.stderr.write('Total errors found: %d\n' % self.error_count)
@@ -1816,7 +1836,7 @@ def CheckForBadCharacters(filename, lines, error):
     error: The function to call with any errors found.
   """
   for linenum, line in enumerate(lines):
-    if u'\ufffd' in line:
+    if unicode(b'\xef\xbf\xbd', 'utf-8') in line:
       error(filename, linenum, 'readability/utf8', 5,
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
@@ -4702,7 +4722,10 @@ def _GetTextInside(text, start_pattern):
 
   # Give opening punctuations to get the matching close-punctuations.
   matching_punctuation = {'(': ')', '{': '}', '[': ']'}
-  closing_punctuation = set(matching_punctuation.itervalues())
+  try:
+    closing_punctuation = set(matching_punctuation.values())
+  except AttributeError:
+    closing_punctuation = set(matching_punctuation.itervalues())
 
   # Find the position to start extracting text.
   match = re.search(start_pattern, text, re.M)
@@ -5672,7 +5695,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
 
   # include_dict is modified during iteration, so we iterate over a copy of
   # the keys.
-  header_keys = include_dict.keys()
+  header_keys = list(include_dict.keys())
   for header in header_keys:
     (same_module, common_path) = FilesBelongToSameModule(abs_filename, header)
     fullpath = common_path + header
@@ -6307,10 +6330,11 @@ def main():
 
   # Change stderr to write with replacement characters so we don't die
   # if we try to print something containing non-ASCII characters.
-  sys.stderr = codecs.StreamReaderWriter(sys.stderr,
-                                         codecs.getreader('utf8'),
-                                         codecs.getwriter('utf8'),
-                                         'replace')
+  if not Py3k:
+      sys.stderr = codecs.StreamReaderWriter(sys.stderr,
+                                             codecs.getreader('utf8'),
+                                             codecs.getwriter('utf8'),
+                                             'replace')
 
   _cpplint_state.ResetErrorCounts()
   for filename in filenames:
@@ -6322,3 +6346,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+
