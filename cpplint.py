@@ -64,7 +64,7 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
         <file> [file] ...
 
   The style guidelines this tries to follow are those in
-    http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+    https://github.com/google/styleguide
 
   Every problem is given a confidence score from 1-5, with 5 meaning we are
   certain of the problem, and 1 meaning it could be a legitimate construct.
