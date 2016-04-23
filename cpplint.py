@@ -60,7 +60,7 @@ _valid_extensions = set(['c', 'cc', 'cpp', 'cxx', 'c++', 'h', 'hpp', 'hxx',
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
                    [--counting=total|toplevel|detailed] [--root=subdir]
-                   [--linelength=digits]
+                   [--linelength=digits] [--return=return value]
         <file> [file] ...
 
   The style guidelines this tries to follow are those in
@@ -138,6 +138,14 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
 
       Examples:
         --extensions=hpp,cpp
+
+    return=return value
+      The return value of the script is forced to given value for
+      preventing make files to stop too early.
+
+      Examples:
+        --return=0
+
 
     cpplint.py supports per-directory configurations specified in CPPLINT.cfg
     files. CPPLINT.cfg file can contain a number of key=value pairs.
@@ -524,6 +532,10 @@ else:
     # BINARY_TYPE = bytes
     itervalues = dict.values
     iteritems = dict.items
+
+# The forces return value of the script to given value if defined.
+# This is set by --return flag.
+_return = None
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
@@ -6282,7 +6294,8 @@ def ParseArguments(args):
                                                  'filter=',
                                                  'root=',
                                                  'linelength=',
-                                                 'extensions='])
+                                                 'extensions=',
+                                                 'return='])
   except getopt.GetoptError:
     PrintUsage('Invalid arguments.')
 
@@ -6322,8 +6335,13 @@ def ParseArguments(args):
       try:
           _valid_extensions = set(val.split(','))
       except ValueError:
-          PrintUsage('Extensions must be comma seperated list.')
-
+          PrintUsage('Extensions must be comma separated list.')
+    elif opt == '--return':
+      global _return
+      try:
+          _return = int(val)
+      except ValueError:
+          PrintUsage('Return value shall be integer.')
   if not filenames:
     PrintUsage('No files were specified.')
 
@@ -6350,6 +6368,8 @@ def main():
   finally:
     sys.stderr = backup_err
 
+  if _return is not None:
+    sys.exit(_return)
   sys.exit(_cpplint_state.error_count > 0)
 
 
