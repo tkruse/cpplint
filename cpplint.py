@@ -139,6 +139,21 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
       Examples:
         --extensions=hpp,cpp
 
+    custom_headers=header_prefix,...
+
+      Custom System Headers
+         cpplint by default assumes that #include <foo/foo.h>
+         is a "system header" due to the presence of the leading <
+         We enable here the ability to define custom system
+         headers, which will be classified in the correct order if they
+         follow C/C++ system headers, but precede non-system headers.
+
+         ONLY USED IN CPPLINT.cfg
+
+      Example:
+
+        custom_headers = mesos,stout,process
+
     cpplint.py supports per-directory configurations specified in CPPLINT.cfg
     files. CPPLINT.cfg file can contain a number of key=value pairs.
     Currently the following options are supported:
@@ -472,9 +487,10 @@ _ALT_TOKEN_REPLACEMENT_PATTERN = re.compile(
 # _IncludeState.CheckNextIncludeOrder().
 _C_SYS_HEADER = 1
 _CPP_SYS_HEADER = 2
-_LIKELY_MY_HEADER = 3
-_POSSIBLE_MY_HEADER = 4
-_OTHER_HEADER = 5
+_CUSTOM_SYS_HEADER = 3
+_LIKELY_MY_HEADER = 4
+_POSSIBLE_MY_HEADER = 5
+_OTHER_HEADER = 6
 
 # These constants define the current inline assembly state
 _NO_ASM = 0       # Outside of inline assembly block
@@ -501,6 +517,10 @@ _root = None
 # The allowed line length of files.
 # This is set by --linelength flag.
 _line_length = 80
+
+# Custom System Headers
+# TODO(marco): verify that they are in the correct alpha order
+_custom_system_headers = []
 
 try:
     xrange
@@ -631,11 +651,13 @@ class _IncludeState(object):
   _MY_H_SECTION = 1
   _C_SECTION = 2
   _CPP_SECTION = 3
-  _OTHER_H_SECTION = 4
+  _CUSTSYS_SECTION = 4
+  _OTHER_H_SECTION = 5
 
   _TYPE_NAMES = {
       _C_SYS_HEADER: 'C system header',
       _CPP_SYS_HEADER: 'C++ system header',
+      _CUSTOM_SYS_HEADER: 'Custome system header',
       _LIKELY_MY_HEADER: 'header this file implements',
       _POSSIBLE_MY_HEADER: 'header this file may implement',
       _OTHER_HEADER: 'other header',
@@ -645,6 +667,7 @@ class _IncludeState(object):
       _MY_H_SECTION: 'a header this file implements',
       _C_SECTION: 'C system header',
       _CPP_SECTION: 'C++ system header',
+      _CUSTSYS_SECTION: 'Custome system header',
       _OTHER_H_SECTION: 'other header',
       }
 
@@ -756,6 +779,9 @@ class _IncludeState(object):
       else:
         self._last_header = ''
         return error_message
+    elif header_type == _CUSTOM_SYS_HEADER:
+      if self._section <= self._CUSTSYS_SECTION:
+          self._section = self._CUSTSYS_SECTION
     elif header_type == _LIKELY_MY_HEADER:
       if self._section <= self._MY_H_SECTION:
         self._section = self._MY_H_SECTION
@@ -4607,6 +4633,9 @@ def _ClassifyInclude(fileinfo, include, is_system):
   is_cpp_h = include in _CPP_HEADERS
 
   if is_system:
+    for prefix in _custom_system_headers:
+      if include.startswith(prefix):
+          return _CUSTOM_SYS_HEADER
     if is_cpp_h:
       return _CPP_SYS_HEADER
     else:
@@ -6136,6 +6165,10 @@ def ProcessConfigOverrides(filename):
                 _line_length = int(val)
             except ValueError:
                 sys.stderr.write('Line length must be numeric.')
+          elif name == 'custom_headers':
+            global _custom_system_headers
+            for prefix in val.split(','):
+                _custom_system_headers.append(prefix)
           else:
             sys.stderr.write(
                 'Invalid configuration option (%s) in file %s\n' %
