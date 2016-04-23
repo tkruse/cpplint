@@ -44,14 +44,22 @@ import shutil
 
 import cpplint
 
+try:
+  xrange
+except NameError:
+  xrange = range
+
+try:
+  unicode
+except NameError:
+  basestring = unicode = str
+
 if sys.version_info < (3,):
-    range = xrange
     def u(x):
         return codecs.unicode_escape_decode(x)[0]
     def b(x):
         return x
 else:
-    xrange = range
     def u(x):
         return x
     def b(x):
