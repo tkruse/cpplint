@@ -2470,7 +2470,7 @@ class NestingState(object):
     #   class LOCKABLE API Object {
     #   };
     class_decl_match = Match(
-        r'^(\s*(?:template\s*<[\w\s<>,:]*>\s*)?'
+        r'^(\s*(?:template\s*<[\w\s<>,:=]*>\s*)?'
         r'(class|struct)\s+(?:[A-Z_]+\s+)*(\w+(?:::\w+)*))'
         r'(.*)$', line)
     if (class_decl_match and
@@ -3541,7 +3541,7 @@ def IsRValueType(typenames, clean_lines, nesting_state, linenum, column):
     # We want to skip over identifiers and commas to get to a symbol.
     # Commas are skipped so that we can find the opening parenthesis
     # for function parameter lists.
-    match_symbol = Match(r'^(.*)([^\w\s,])[\w\s,]*$', line)
+    match_symbol = Match(r'^(.*)([^\w\s,:&*])[\w\s,:&*]*$', line)
     if match_symbol:
       break
     start -= 1
