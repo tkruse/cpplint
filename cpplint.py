@@ -867,7 +867,8 @@ class _CppLintState(object):
     for category, count in iteritems(self.errors_by_category):
       sys.stderr.write('Category \'%s\' errors found: %d\n' %
                        (category, count))
-    sys.stderr.write('Total errors found: %d\n' % self.error_count)
+    if self.error_count > 0 and self.verbose_level > 0:
+      sys.stderr.write('Total errors found: %d\n' % self.error_count)
 
 _cpplint_state = _CppLintState()
 
@@ -6232,8 +6233,8 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
       for linenum in crlf_lines:
         Error(filename, linenum, 'whitespace/newline', 1,
               'Unexpected \\r (^M) found; better to use only \\n')
-
-  sys.stderr.write('Done processing %s\n' % filename)
+  if vlevel > 0:
+    sys.stderr.write('Done processing %s\n' % filename)
   _RestoreFilters()
 
 
