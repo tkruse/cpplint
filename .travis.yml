@@ -21,3 +21,4 @@ script:
   - python cpplint_unittest.py
   - pyflakes cpplint.py
   - pyflakes cpplint_unittest.py
+  - python cpplint.py --help
