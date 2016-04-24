@@ -57,6 +57,9 @@ import unicodedata
 _valid_extensions = set(['c', 'cc', 'cpp', 'cxx', 'c++', 'h', 'hpp', 'hxx',
     'h++'])
 
+Py3k = (sys.version_info[0] == 3)
+"""A boolean to check if we are running Python3000"""
+
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
                    [--counting=total|toplevel|detailed] [--root=subdir]
@@ -512,6 +515,7 @@ try:
 except NameError:
   basestring = unicode = str
 
+ <<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
 if sys.version_info < (3,):
     def u(x):
         return codecs.unicode_escape_decode(x)[0]
@@ -524,6 +528,12 @@ else:
     # BINARY_TYPE = bytes
     itervalues = dict.values
     iteritems = dict.items
+=======
+try:
+    long
+except NameError:
+    long = int
+>>>>>>> Added support for Python3000
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
@@ -864,7 +874,15 @@ class _CppLintState(object):
 
   def PrintErrorCounts(self):
     """Print a summary of errors by category, and the total."""
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
     for category, count in iteritems(self.errors_by_category):
+=======
+    try:
+        items = self.errors_by_category.iteritems()
+    except AttributeError:
+        items = self.errors_by_category.items()
+    for category, count in items:
+>>>>>>> Added support for Python3000
       sys.stderr.write('Category \'%s\' errors found: %d\n' %
                        (category, count))
     if self.error_count > 0 and self.verbose_level > 0:
@@ -1840,7 +1858,11 @@ def CheckForBadCharacters(filename, lines, error):
     error: The function to call with any errors found.
   """
   for linenum, line in enumerate(lines):
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
     if u('\ufffd') in line:
+=======
+    if unicode(b'\xef\xbf\xbd', 'utf-8') in line:
+>>>>>>> Added support for Python3000
       error(filename, linenum, 'readability/utf8', 5,
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
@@ -4737,7 +4759,14 @@ def _GetTextInside(text, start_pattern):
 
   # Give opening punctuations to get the matching close-punctuations.
   matching_punctuation = {'(': ')', '{': '}', '[': ']'}
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
   closing_punctuation = set(itervalues(matching_punctuation))
+=======
+  try:
+    closing_punctuation = set(matching_punctuation.values())
+  except AttributeError:
+    closing_punctuation = set(matching_punctuation.itervalues())
+>>>>>>> Added support for Python3000
 
   # Find the position to start extracting text.
   match = re.search(start_pattern, text, re.M)
@@ -6337,6 +6366,7 @@ def ParseArguments(args):
 
 def main():
   filenames = ParseArguments(sys.argv[1:])
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
   backup_err = sys.stderr
   try:
     # Change stderr to write with replacement characters so we don't die
@@ -6349,9 +6379,25 @@ def main():
     _cpplint_state.PrintErrorCounts()
   finally:
     sys.stderr = backup_err
+=======
+
+  # Change stderr to write with replacement characters so we don't die
+  # if we try to print something containing non-ASCII characters.
+  if not Py3k:
+      sys.stderr = codecs.StreamReaderWriter(sys.stderr,
+                                             codecs.getreader('utf8'),
+                                             codecs.getwriter('utf8'),
+                                             'replace')
+
+  _cpplint_state.ResetErrorCounts()
+  for filename in filenames:
+    ProcessFile(filename, _cpplint_state.verbose_level)
+  _cpplint_state.PrintErrorCounts()
+>>>>>>> Added support for Python3000
 
   sys.exit(_cpplint_state.error_count > 0)
 
 
 if __name__ == '__main__':
   main()
+

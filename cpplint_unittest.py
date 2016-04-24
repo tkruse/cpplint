@@ -43,6 +43,7 @@ import tempfile
 import shutil
 
 import cpplint
+import sys
 
 try:
   xrange
@@ -54,6 +55,7 @@ try:
 except NameError:
   basestring = unicode = str
 
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
 if sys.version_info < (3,):
     def u(x):
         return codecs.unicode_escape_decode(x)[0]
@@ -65,6 +67,18 @@ else:
     def b(x):
         return codecs.latin_1_encode(x)[0]
 
+=======
+try:
+    long
+except NameError:
+    long = int
+Py3k = (sys.version_info[0] == 3)
+if Py3k:
+  chrstr = bytes
+else:
+  def chrstr(l):
+    return ''.join([chr(x) for x in l])
+>>>>>>> Added support for Python3000
 
 # This class works as an error collector and replaces cpplint.Error
 # function for the unit tests.  We also verify each category we see
@@ -328,8 +342,16 @@ class CpplintTest(CpplintTestBase):
   # Test get line width.
   def testGetLineWidth(self):
     self.assertEquals(0, cpplint.GetLineWidth(''))
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
     self.assertEquals(10, cpplint.GetLineWidth('x' * 10))
     self.assertEquals(16, cpplint.GetLineWidth(u('\u90fd|\u9053|\u5e9c|\u770c|\u652f\u5e81')))
+=======
+    self.assertEquals(10, cpplint.GetLineWidth(unicode('x') * 10))
+    try:
+      self.assertEquals(16, cpplint.GetLineWidth('都|道|府|県|支庁'.decode('utf-8')))
+    except AttributeError:
+      self.assertEquals(16, cpplint.GetLineWidth('都|道|府|県|支庁'))
+>>>>>>> Added support for Python3000
 
   def testGetTextInside(self):
     self.assertEquals('', cpplint._GetTextInside('fun()', r'fun\('))
@@ -3024,6 +3046,7 @@ class CpplintTest(CpplintTestBase):
   def testInvalidUtf8(self):
     def DoTest(self, raw_bytes, has_invalid_utf8):
       error_collector = ErrorCollector(self.assert_)
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
       if sys.version_info < (3,):
           unidata = unicode(raw_bytes, 'utf8', 'replace').split('\n')
       else:
@@ -3031,6 +3054,13 @@ class CpplintTest(CpplintTestBase):
       cpplint.ProcessFileData(
           'foo.cc', 'cc',
           unidata,
+=======
+      cpplint.ProcessFileData(
+          'foo.cc', 'cc',
+          unidata,
+          error_collector = ErrorCollector(self.assert_)
+          raw_bytes.decode('utf-8', 'replace').split('\n'),
+>>>>>>> Added support for Python3000
           error_collector)
       # The warning appears only once.
       self.assertEquals(
@@ -3040,12 +3070,28 @@ class CpplintTest(CpplintTestBase):
               ' (or Unicode replacement character).'
               '  [readability/utf8] [5]'))
 
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
     DoTest(self, b('Hello world\n'), False)
     DoTest(self, b('\xe9\x8e\xbd\n'), False)
     DoTest(self, b('\xe9x\x8e\xbd\n'), True)
     # This is the encoding of the replacement character itself (which
     # you can see by evaluating codecs.getencoder('utf8')(u'\ufffd')).
     DoTest(self, b('\xef\xbf\xbd\n'), True)
+=======
+    # For Python 2/3 compatibility we must use the chrstr shim to create the
+    # the byte strings because Python3 automatically trys to encode it to
+    # UTF-8. Normal strings must be encoded to ascii to make the DoTest
+    # function correctly work on Python3
+    DoTest(self, 'Hello world\n'.encode('ascii'), False)
+    #                  '\xe9 \x8e \xbd  \n'
+    DoTest(self, chrstr([233, 142, 189, 10]), False)
+    #                  '\xe9   x  \x8e \xbd  \n'
+    DoTest(self, chrstr([233, 120, 142, 189, 10]), True)
+    # This is the encoding of the replacement character itself (which
+    # you can see by evaluating codecs.getencoder('utf8')(u'\ufffd')).
+    #                  '\xef \xbf \xbd  \n'
+    DoTest(self, chrstr([239, 191, 189, 10]), True)
+>>>>>>> Added support for Python3000
 
   def testBadCharacters(self):
     # Test for NUL bytes only
@@ -3061,6 +3107,7 @@ class CpplintTest(CpplintTestBase):
     # the same line.
     error_collector = ErrorCollector(self.assert_)
     raw_bytes = b('\xe9x\0')
+<<<<<<< 77150e7e14383e6437444c61b70ad1ba5b55c15b
     if sys.version_info < (3,):
           unidata = unicode(raw_bytes, 'utf8', 'replace')
     else:
@@ -3070,6 +3117,13 @@ class CpplintTest(CpplintTestBase):
         ['// Copyright 2014 Your Company.',
          unidata,
          ''],
+=======
+    cpplint.ProcessFileData(
+        'nul_utf8.cc', 'cc',
+        ['// Copyright 2014 Your Company.',
+         chrstr([233, 120, 0]).decode('utf-8', 'replace'), ''],
+         ''],     
+>>>>>>> Added support for Python3000
         error_collector)
     self.assertEquals(
         error_collector.Results(),
