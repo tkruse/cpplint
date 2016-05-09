@@ -420,7 +420,7 @@ _CHECK_MACROS = [
     ]
 
 # Replacement macros for CHECK/DCHECK/EXPECT_TRUE/EXPECT_FALSE
-_CHECK_REPLACEMENT = dict([(m, {}) for m in _CHECK_MACROS])
+_CHECK_REPLACEMENT = dict([(macro_var, {}) for macro_var in _CHECK_MACROS])
 
 for op, replacement in [('==', 'EQ'), ('!=', 'NE'),
                         ('>=', 'GE'), ('>', 'GT'),
@@ -513,17 +513,18 @@ except NameError:
   basestring = unicode = str
 
 if sys.version_info < (3,):
-    def u(x):
+    def unicode_escape_decode(x):
         return codecs.unicode_escape_decode(x)[0]
     # BINARY_TYPE = str
     itervalues = dict.itervalues
     iteritems = dict.iteritems
 else:
-    def u(x):
+    def unicode_escape_decode(x):
         return x
     # BINARY_TYPE = bytes
     itervalues = dict.values
     iteritems = dict.items
+
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
@@ -1145,9 +1146,9 @@ def Error(filename, linenum, category, confidence, message):
       sys.stderr.write('%s:%s: warning: %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
     else:
-      m = '%s:%s:  %s  [%s] [%d]\n' % (
+      final_message = '%s:%s:  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence)
-      sys.stderr.write(m)
+      sys.stderr.write(final_message)
 
 # Matches standard C++ escape sequences per 2.13.2.3 of the C++ standard.
 _RE_PATTERN_CLEANSE_LINE_ESCAPES = re.compile(
@@ -1840,7 +1841,7 @@ def CheckForBadCharacters(filename, lines, error):
     error: The function to call with any errors found.
   """
   for linenum, line in enumerate(lines):
-    if u('\ufffd') in line:
+    if unicode_escape_decode('\ufffd') in line:
       error(filename, linenum, 'readability/utf8', 5,
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
