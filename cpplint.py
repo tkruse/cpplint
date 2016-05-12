@@ -203,7 +203,7 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
 
       Example file:
         filter=-build/include_order,+build/include_alpha
-        exclude_files=.*\.cc
+        exclude_files=.*\\.cc
 
     The above example disables build/include_order warning and enables
     build/include_alpha as well as excludes all .cc from being
@@ -1059,7 +1059,7 @@ class FileInfo(object):
     return os.path.abspath(self._filename).replace('\\', '/')
 
   def RepositoryName(self):
-    """FullName after removing the local path to the repository.
+    r"""FullName after removing the local path to the repository.
 
     If we have a real absolute path name here we can try to do something smart:
     detecting the root of the checkout and truncating /path/to/checkout from
@@ -4768,7 +4768,7 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
 
 
 def _GetTextInside(text, start_pattern):
-  """Retrieves all the text between matching open and close parentheses.
+  r"""Retrieves all the text between matching open and close parentheses.
 
   Given a string of lines and a regular expression string, retrieve all the text
   following the expression and between opening punctuation symbols like
