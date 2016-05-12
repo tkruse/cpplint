@@ -53,17 +53,32 @@ import string
 import sys
 import unicodedata
 
+# if empty, use defaults
+_header_extensions = set([])
+
+# if empty, use defaults
+_valid_extensions = set([])
+
+
 # Files with any of these extensions are considered to be
 # header files (and will undergo different style checks).
 # This set can be extended by using the --headers
 # option (also supported in CPPLINT.cfg)
-_header_extensions = set(['h', 'hpp', 'hxx', 'h++', 'cuh'])
-_nonheader_extensions = set(['c', 'cc', 'cpp', 'cxx', 'c++', 'cu'])
-
+def GetHeaderExtensions():
+  if not _header_extensions:
+    return set(['h', 'hpp', 'hxx', 'h++', 'cuh'])
+  return _header_extensions
 
 # The allowed extensions for file names
-# This is set by --extensions flag.
-_valid_extensions = _nonheader_extensions.union(_header_extensions)
+# This is set by --extensions flag
+def GetAllExtensions():
+  if not _valid_extensions:
+    return GetHeaderExtensions().union(set(['c', 'cc', 'cpp', 'cxx', 'c++', 'cu']))
+  return _valid_extensions
+
+def GetNonHeaderExtensions():
+  return GetAllExtensions().difference(GetHeaderExtensions())
+
 
 # files with this suffix before the extension will be treated as test files
 _test_suffixes = set(['_unittest', '_test', '_regtest'])
@@ -72,6 +87,8 @@ _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
                    [--counting=total|toplevel|detailed] [--root=subdir]
                    [--linelength=digits]
+                   [--headers=ext1,ext2]
+                   [--extensions=ext1,ext2]
         <file> [file] ...
 
   The style guidelines this tries to follow are those in
@@ -148,7 +165,15 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
       The allowed file extensions that cpplint will check
 
       Examples:
-        --extensions=hpp,cpp
+        --extensions=%s
+
+    headers=extension,extension,...
+      The allowed header extensions that cpplint will consider to be header files
+      (by default, only files with extensions %s
+      will be assumed to be headers)
+
+      Examples:
+        --headers=%s
 
     cpplint.py supports per-directory configurations specified in CPPLINT.cfg
     files. CPPLINT.cfg file can contain a number of key=value pairs.
@@ -184,7 +209,10 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
     build/include_alpha as well as excludes all .cc from being
     processed by linter, in the current directory (where the .cfg
     file is located) and all sub-directories.
-""" % (list(_valid_extensions))
+""" % (list(GetAllExtensions()),
+       ','.join(list(GetAllExtensions())),
+       GetHeaderExtensions(),
+       ','.join(GetHeaderExtensions()))
 
 # We categorize each error message we print.  Here are the categories.
 # We want an explicit list so we can list them all in cpplint --filter=.
@@ -535,6 +563,7 @@ else:
     # BINARY_TYPE = bytes
     itervalues = dict.values
     iteritems = dict.items
+
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
@@ -1094,7 +1123,7 @@ class FileInfo(object):
 
   def IsSource(self):
     """File has a source file extension."""
-    return self.Extension()[1:] in _valid_extensions
+    return self.Extension()[1:] in GetAllExtensions()
 
 
 def _ShouldPrintError(category, confidence, linenum):
@@ -1816,7 +1845,7 @@ def CheckHeaderFileIncluded(filename, include_state, error):
     return
 
   fileinfo = FileInfo(filename)
-  for ext in _header_extensions:
+  for ext in GetHeaderExtensions():
       headerfile = filename[:filename.rfind('.') + 1] + ext
       if not os.path.exists(headerfile):
         continue
@@ -4472,7 +4501,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
 
   # Check if the line is a header guard.
   is_header_guard = False
-  if file_extension in _header_extensions:
+  if file_extension in GetHeaderExtensions():
     cppvar = GetHeaderGuardCPPVariable(filename)
     if (line.startswith('#ifndef %s' % cppvar) or
         line.startswith('#define %s' % cppvar) or
@@ -4567,9 +4596,9 @@ def _DropCommonSuffixes(filename):
   """
   for suffix in itertools.chain(
       ('%s.%s' % (test_suffix.lstrip('_'), ext)
-       for test_suffix, ext in itertools.product(_test_suffixes, _nonheader_extensions)),
+       for test_suffix, ext in itertools.product(_test_suffixes, GetNonHeaderExtensions())),
       ('%s.%s' % (suffix, ext)
-       for suffix, ext in itertools.product(['inl', 'imp', 'internal'], _header_extensions))):
+       for suffix, ext in itertools.product(['inl', 'imp', 'internal'], GetHeaderExtensions()))):
     if (filename.endswith(suffix) and len(filename) > len(suffix) and
         filename[-len(suffix) - 1] in ('-', '_')):
       return filename[:-len(suffix) - 1]
@@ -4585,7 +4614,7 @@ def _IsTestFilename(filename):
   Returns:
     True if 'filename' looks like a test, False otherwise.
   """
-  for test_suffix, ext in itertools.product(_test_suffixes, _nonheader_extensions):
+  for test_suffix, ext in itertools.product(_test_suffixes, GetNonHeaderExtensions()):
     if filename.endswith(test_suffix + '.' + ext):
       return True
   return False
@@ -4694,7 +4723,7 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
             (include, filename, duplicate_line))
       return
 
-    for extension in _nonheader_extensions:
+    for extension in GetNonHeaderExtensions():
       if (include.endswith('.' + extension) and
           os.path.dirname(fileinfo.RepositoryName()) != os.path.dirname(include)):
         error(filename, linenum, 'build/include', 4,
@@ -4851,7 +4880,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
   CheckGlobalStatic(filename, clean_lines, linenum, error)
   CheckPrintf(filename, clean_lines, linenum, error)
 
-  if file_extension in _header_extensions:
+  if file_extension in GetHeaderExtensions():
     # TODO(unknown): check that 1-arg constructors are explicit.
     #                How to tell it's a constructor?
     #                (handled in CheckForNonStandardConstructs for now)
@@ -4958,7 +4987,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
   # Check for use of unnamed namespaces in header files.  Registration
   # macros are typically OK, so we allow use of "namespace {" on lines
   # that end with backslashes.
-  if (file_extension in _header_extensions
+  if (file_extension in GetHeaderExtensions()
       and Search(r'\bnamespace\s*{', line)
       and line[-1] != '\\'):
     error(filename, linenum, 'build/namespaces', 4,
@@ -5600,11 +5629,11 @@ def FilesBelongToSameModule(filename_cc, filename_h):
     string: the additional prefix needed to open the header file.
   """
   fileinfo_cc = FileInfo(filename_cc)
-  if not fileinfo_cc.Extension().lstrip('.') in _nonheader_extensions:
+  if not fileinfo_cc.Extension().lstrip('.') in GetNonHeaderExtensions():
     return (False, '')
 
   fileinfo_h = FileInfo(filename_h)
-  if not fileinfo_h.Extension().lstrip('.') in _header_extensions:
+  if not fileinfo_h.Extension().lstrip('.') in GetHeaderExtensions():
     return (False, '')
 
   filename_cc = filename_cc[:-(len(fileinfo_cc.Extension()))]
@@ -5739,7 +5768,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
   # TODO(unknown): Do a better job of finding .h files so we are confident that
   # not having the .h file means there isn't one.
   if not header_found:
-    for extension in _nonheader_extensions:
+    for extension in GetNonHeaderExtensions():
       if filename.endswith('.' + extension):
         return
 
@@ -6080,7 +6109,7 @@ def ProcessFileData(filename, file_extension, lines, error,
   RemoveMultiLineComments(filename, lines, error)
   clean_lines = CleansedLines(lines)
 
-  if file_extension in _header_extensions:
+  if file_extension in GetHeaderExtensions():
     CheckForHeaderGuard(filename, clean_lines, error)
 
   for line in range(clean_lines.NumLines()):
@@ -6093,7 +6122,7 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error)
 
   # Check that the .cc file has included its header if it exists.
-  if file_extension in _nonheader_extensions:
+  if file_extension in GetNonHeaderExtensions():
     CheckHeaderFileIncluded(filename, include_state, error)
 
   # We check here rather than inside ProcessLine so that we see raw
@@ -6160,6 +6189,24 @@ def ProcessConfigOverrides(filename):
                 _line_length = int(val)
             except ValueError:
                 sys.stderr.write('Line length must be numeric.')
+          elif name == 'extensions':
+              global _valid_extensions
+              try:
+                  extensions = [ext.strip() for ext in val.split(',')]
+                  _valid_extensions = set(extensions)
+              except ValueError:
+                  sys.stderr.write('Extensions should be a comma-separated list of values;'
+                                   'for example: extensions=hpp,cpp\n'
+                                   'This could not be parsed: "%s"' % (val,))
+          elif name == 'headers':
+              global _header_extensions
+              try:
+                  extensions = [ext.strip() for ext in val.split(',')]
+                  _header_extensions = set(extensions)
+              except ValueError:
+                  sys.stderr.write('Extensions should be a comma-separated list of values;'
+                                   'for example: extensions=hpp,cpp\n'
+                                   'This could not be parsed: "%s"' % (val,))
           else:
             sys.stderr.write(
                 'Invalid configuration option (%s) in file %s\n' %
@@ -6237,9 +6284,9 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
 
   # When reading from stdin, the extension is unknown, so no cpplint tests
   # should rely on the extension.
-  if filename != '-' and file_extension not in _valid_extensions:
+  if filename != '-' and file_extension not in GetAllExtensions():
     sys.stderr.write('Ignoring %s; not a valid file name '
-                     '(%s)\n' % (filename, ', '.join(_valid_extensions)))
+                     '(%s)\n' % (filename, ', '.join(GetAllExtensions())))
   else:
     ProcessFileData(filename, file_extension, lines, Error,
                     extra_check_functions)
@@ -6306,7 +6353,8 @@ def ParseArguments(args):
                                                  'filter=',
                                                  'root=',
                                                  'linelength=',
-                                                 'extensions='])
+                                                 'extensions=',
+                                                 'headers='])
   except getopt.GetoptError:
     PrintUsage('Invalid arguments.')
 
@@ -6345,6 +6393,12 @@ def ParseArguments(args):
       global _valid_extensions
       try:
           _valid_extensions = set(val.split(','))
+      except ValueError:
+          PrintUsage('Extensions must be comma seperated list.')
+    elif opt == '--headers':
+      global _header_extensions
+      try:
+          _header_extensions = set(val.split(','))
       except ValueError:
           PrintUsage('Extensions must be comma seperated list.')
 
