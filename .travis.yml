@@ -19,6 +19,7 @@ install:
 # command to run tests, e.g. python setup.py test
 script:
   - python cpplint_unittest.py
+  - python cpplint_clitest.py
   - pyflakes cpplint.py
   - pyflakes cpplint_unittest.py
-  - python cpplint.py --help
+  - pyflakes cpplint_clitest.py
