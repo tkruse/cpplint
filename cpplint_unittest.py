@@ -55,17 +55,22 @@ try:
 except NameError:
   basestring = unicode = str
 
-if sys.version_info < (3,):
-    def unicode_escape_decode(x):
-        return codecs.unicode_escape_decode(x)[0]
-    def codecs_latin_encode(x):
-        return x
-else:
-    def unicode_escape_decode(x):
-        return x
-    def codecs_latin_encode(x):
-        return codecs.latin_1_encode(x)[0]
+try:
+  long(2)
+except NameError:
+  long = int
 
+def unicode_escape_decode(x):
+  if sys.version_info < (3,):
+    return codecs.unicode_escape_decode(x)[0]
+  else:
+    return x
+
+def codecs_latin_encode(x):
+  if sys.version_info < (3,):
+    return x
+  else:
+    return codecs.latin_1_encode(x)[0]
 
 # This class works as an error collector and replaces cpplint.Error
 # function for the unit tests.  We also verify each category we see
@@ -330,7 +335,7 @@ class CpplintTest(CpplintTestBase):
   # Test get line width.
   def testGetLineWidth(self):
     self.assertEquals(0, cpplint.GetLineWidth(''))
-    self.assertEquals(10, cpplint.GetLineWidth('x' * 10))
+    self.assertEquals(10, cpplint.GetLineWidth(unicode('x') * 10))
     self.assertEquals(16, cpplint.GetLineWidth(unicode_escape_decode('\u90fd|\u9053|\u5e9c|\u770c|\u652f\u5e81')))
 
   def testGetTextInside(self):
