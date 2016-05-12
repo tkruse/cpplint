@@ -503,28 +503,34 @@ _root = None
 _line_length = 80
 
 try:
-    xrange
+  xrange(1, 0)
 except NameError:
-    xrange = range
+  xrange = range
 
 try:
   unicode
 except NameError:
   basestring = unicode = str
 
+try:
+  long(2)
+except NameError:
+  long = int
+
 if sys.version_info < (3,):
-    def unicode_escape_decode(x):
-        return codecs.unicode_escape_decode(x)[0]
     # BINARY_TYPE = str
     itervalues = dict.itervalues
     iteritems = dict.iteritems
 else:
-    def unicode_escape_decode(x):
-        return x
     # BINARY_TYPE = bytes
     itervalues = dict.values
     iteritems = dict.items
 
+def unicode_escape_decode(x):
+  if sys.version_info < (3,):
+    return codecs.unicode_escape_decode(x)[0]
+  else:
+    return x
 
 def ParseNolintSuppressions(filename, raw_line, linenum, error):
   """Updates the global list of error-suppressions.
@@ -6343,6 +6349,8 @@ def main():
     # Change stderr to write with replacement characters so we don't die
     # if we try to print something containing non-ASCII characters.
     sys.stderr = codecs.StreamReader(sys.stderr,
+                                     codecs.getreader('utf8'),
+                                     codecs.getwriter('utf8'),
                                      'replace')
     _cpplint_state.ResetErrorCounts()
     for filename in filenames:
